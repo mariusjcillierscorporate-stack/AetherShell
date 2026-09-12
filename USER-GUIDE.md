@@ -102,8 +102,8 @@ No. AetherShell *is* the overlay window (unlike WTQ, which wraps other programs)
 **Does it replace Explorer or the taskbar?**  
 No.
 
-**Antivirus flagged it.**  
-Unsigned desktop apps are often scanned on first run. Submit a false-positive if you use a vendor that allows that; or run the portable folder from a path you trust.
+**Antivirus flagged Install-AetherShell.ps1 (Avast IDP.HEUR.26).**  
+False positive on the **old PowerShell installer**, not malware in the terminal. Avast Behavior Shield watches scripts that copy an exe, clear the download flag, and add a Run-key autostart. Use `portable\AetherShell.exe` or `Install-AetherShell.cmd` from the current package. Do not run any `.ps1`.
 
 **Uninstall**  
 See INSTALL.md.

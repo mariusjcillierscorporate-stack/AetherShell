@@ -1,72 +1,56 @@
 # AetherShell — install on Windows 10 / 11
 
-Works on **Windows 10 (21H2+)** and **Windows 11**, 64-bit. No admin account is required for the default current-user install.
+Works on **Windows 10 (21H2+)** and **Windows 11**, 64-bit. No admin account is required.
+
+## Safest start
+
+Open `portable\` and double-click **AetherShell.exe**. Do not move the exe out of that folder.
+
+That skips every installer script. Use this if antivirus is sensitive.
 
 ## What you received
 
 | Path | What it is |
 |---|---|
-| `Install-AetherShell.ps1` | Copies the app to `%LOCALAPPDATA%\AetherShell`, Start Menu + desktop shortcuts, starts with Windows |
-| `Uninstall-AetherShell.ps1` | Removes the per-user install |
-| `portable\` | Full app folder with `AetherShell.exe` (run without installing) |
+| `portable\` | Full app. Run `AetherShell.exe` from here |
+| `Install-AetherShell.cmd` | Copies the app to `%LOCALAPPDATA%\AetherShell` and adds a Start Menu shortcut |
+| `Uninstall-AetherShell.cmd` | Removes the per-user copy |
 | `USER-GUIDE.md` | How to use the overlay |
 
-## Install (recommended)
+There is **no PowerShell installer**. Do not run any `.ps1` from older zips.
 
-1. Unzip `AetherShell-Windows.zip` to a folder you control, e.g. `Downloads\AetherShell-Windows`.
-2. If File Explorer shows **Security: This file came from another computer**, open Properties on the zip **or** the extracted folder, tick **Unblock**, Apply.
-3. Right-click `Install-AetherShell.ps1` → **Run with PowerShell**.
+## Optional copy-to-profile install
 
-If PowerShell refuses to run scripts:
+1. Unzip `AetherShell-Windows.zip`.
+2. If File Explorer shows **This file came from another computer**, Properties → **Unblock** → Apply.
+3. Double-click `Install-AetherShell.cmd`.
 
-```powershell
-cd path\to\AetherShell-Windows
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\Install-AetherShell.ps1
-```
-
-The installer:
-
-- Copies files to `%LOCALAPPDATA%\AetherShell`
-- Creates a Start Menu shortcut and a desktop shortcut
-- Registers **Start with Windows** for the current user
-- Launches AetherShell
+It copies files and creates a Start Menu shortcut. It does **not** add AetherShell to Windows startup. Autostart is an opt-in in the tray menu later.
 
 ## SmartScreen / “Windows protected your PC”
 
-The exe is **unsigned** (no paid code-signing certificate). On first launch:
+The exe is **unsigned**. On first launch:
 
-1. Click **More info**
-2. Click **Run anyway**
+1. **More info**
+2. **Run anyway**
 
-That is expected. The app does not require the network to run.
+Expected. The app does not need the network to run.
 
-## Portable mode
+## Avast IDP.HEUR.26 on older zips
 
-Double-click `portable\AetherShell.exe`. Do not move the exe out of that folder.
+If Avast quarantined `Install-AetherShell.ps1` with **IDP.HEUR.26**:
 
-To skip autostart when using the script:
+- That was **Behavior Shield**, not a virus signature on the program.
+- The old script copied files, stripped the download mark (`Unblock-File`), wrote `HKCU\...\Run` (start with Windows), then launched the exe. Avast treats that pattern as generic persistence.
+- `powershell.exe` in the alert is Windows’ own shell. Avast names the process that ran the script.
+- **AetherShell.exe itself was not the detection.** Restore the folder if Avast ate files, then use `portable\AetherShell.exe` or this newer zip.
 
-```powershell
-.\Install-AetherShell.ps1 -NoStart
-```
+Do not turn Avast off. Skip the old `.ps1`. Use this package.
 
 ## Uninstall
 
-```powershell
-.\Uninstall-AetherShell.ps1
-```
-
-Or delete `%LOCALAPPDATA%\AetherShell` and the AetherShell shortcuts, then remove the value `AetherShell` from:
-
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-
-## Requirements
-
-- 64-bit Windows 10 or 11
-- ~250 MB disk
-- No Visual Studio, Node, or Git required to **run** the packaged app
+Run `Uninstall-AetherShell.cmd`, or delete `%LOCALAPPDATA%\AetherShell` and the Start Menu shortcut.
 
 ## After install
 
-Look for the AetherShell mark in the **notification area** (tray). Press **Ctrl+`** (Control + backtick, the key under Escape) to hide and summon the overlay.
+Look for AetherShell in the **notification area** (tray). Press **Ctrl+`** (Control + backtick, under Escape) to hide and summon the overlay.

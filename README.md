@@ -1,22 +1,20 @@
 # AetherShell
 
-Persistent overlay terminal for **Windows 10 and 11**. Tray-resident, always-on-top, Quake / Float / Dock / HUD modes. Toggle with `Ctrl+\``.
+Persistent overlay terminal for **Windows 10 and 11**. Tray-resident, always-on-top. Toggle with `Ctrl+\``.
 
 ## Download
 
-**[AetherShell-Windows.zip](https://github.com/mariusjcillierscorporate-stack/AetherShell/releases/latest/download/AetherShell-Windows.zip)** — ~110 MB, 64-bit portable + installer scripts.
+**[AetherShell-Windows.zip](https://github.com/mariusjcillierscorporate-stack/AetherShell/releases/latest/download/AetherShell-Windows.zip)**
+
+If Avast quarantined an older `Install-AetherShell.ps1` as IDP.HEUR.26: that was a false positive on the installer script. This package has **no PowerShell installer**. Run `portable\AetherShell.exe` or `Install-AetherShell.cmd`.
 
 ## Install
 
-1. Unzip the package.
-2. If Explorer says the files came from another computer: Properties → **Unblock**.
-3. Double-click `Install-AetherShell.cmd`.
-4. First launch: SmartScreen → **More info** → **Run anyway** (unsigned build).
-5. Press `Ctrl+\`` to hide / summon. Tray icon to quit.
+1. Unzip.
+2. Double-click `portable\AetherShell.exe` (safest) **or** `Install-AetherShell.cmd`.
+3. SmartScreen: More info → Run anyway.
 
-Portable: run `Start-Portable.cmd` or `portable\AetherShell.exe`. Do not move the exe out of that folder.
-
-Full steps: [INSTALL.md](INSTALL.md) · usage: [USER-GUIDE.md](USER-GUIDE.md)
+See [INSTALL.md](INSTALL.md) and [USER-GUIDE.md](USER-GUIDE.md).
 
 ## License
 
