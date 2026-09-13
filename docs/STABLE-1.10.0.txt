@@ -1,0 +1,51 @@
+AetherShell 1.10.0 — STABLE SNAPSHOT
+===================================
+Frozen 13 Sep 2026 after floor tests on Marius's Windows PC.
+
+This is the empty body. Not a lens. Bayonet is not in this build.
+
+WHAT IT IS
+----------
+A tray-resident overlay terminal for Windows 10/11.
+Real PowerShell / cmd / WSL / Git Bash.
+Hide keeps the live shell. Quit starts a new one (Up still has last commands).
+
+HOTKEYS
+-------
+Ctrl+Shift+A     show / hide  (most reliable)
+Ctrl+`           show / hide  (if the keyboard is on English)
+Escape           close find, then palette, then hide
+Ctrl+Shift+P     command palette
+Ctrl+Tab         next tab
+Ctrl+F           find in this tab
+Ctrl+Plus/Minus  font
+Up / Down        last commands (survives Quit)
+Ctrl+Shift+C/V   copy / paste   (select also copies)
+
+TRAY
+----
+Show / Hide
+Modes: Quake, Float, Dock, HUD
+Start with Windows
+Start in tray (no panel)  — next launch stays in the tray
+Quit AetherShell
+
+RUN
+---
+1. Unzip.
+2. Open portable\
+3. Double-click AetherShell.exe
+4. Do not run as Administrator.
+5. If "Start in tray" is on, use Ctrl+Shift+A.
+
+Do not scatter the portable folder. The exe needs the files next to it.
+
+AVAST
+-----
+Ignore .ps1. There is no PowerShell installer in this zip.
+If the exe is blocked: More info → Run anyway.
+
+LOCKED LINE
+-----------
+AetherShell is the body. Products are Bayonet lenses.
+Hot-swap the lens. Never replace the body.

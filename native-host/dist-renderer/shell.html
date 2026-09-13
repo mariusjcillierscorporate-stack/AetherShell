@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AetherShell</title>
+  <link rel="stylesheet" href="./vendor/xterm.css" />
+  <style>
+    html, body, #app { height: 100%; margin: 0; background: #0a0c10; color: #e8eaef; font-family: "Segoe UI", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    #app { display: flex; flex-direction: column; overflow: hidden; }
+    header {
+      height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px;
+      border-bottom: 1px solid #2a2f3a; background: #12151c; -webkit-app-region: drag;
+    }
+    header button, .nodrag { -webkit-app-region: no-drag; }
+    .mark { width: 10px; height: 10px; border-radius: 2px; background: #7aa2f7; }
+    .title { font-size: 12px; color: #8b909a; letter-spacing: .04em; }
+    .chip {
+      font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+      color: #7aa2f7; border: 1px solid #2a2f3a; border-radius: 4px; padding: 1px 6px;
+    }
+    .tabs { display: flex; gap: 4px; flex: 1; min-width: 0; overflow: auto; }
+    .tab {
+      border: 0; background: #1a1e27; color: #c8ccd4; height: 24px; padding: 0 8px 0 10px;
+      border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .tab.on { background: #7aa2f7; color: #0a0c10; }
+    .tab .x { opacity: .45; font-size: 11px; }
+    .tab.on .x { color: #0a0c10; }
+    .icon {
+      border: 0; background: transparent; color: #8b909a; min-width: 28px; height: 28px;
+      border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
+    .icon:hover { background: #1a1e27; color: #e8eaef; }
+    .body { flex: 1; display: flex; min-height: 0; }
+    #termwrap { flex: 1; min-width: 0; padding: 8px 10px 4px; }
+    #rail {
+      width: 92px; border-left: 1px solid #2a2f3a; background: #12151c; padding: 8px;
+      font-size: 10px; color: #8b909a; font-family: Consolas, "Cascadia Code", monospace;
+    }
+    #app.hud #rail { display: none; }
+    #rail b { display: block; color: #e8eaef; margin-bottom: 8px; letter-spacing: .08em; font-size: 10px; }
+    footer {
+      height: 24px; display: flex; justify-content: space-between; align-items: center;
+      padding: 0 12px; border-top: 1px solid #2a2f3a; background: #12151c;
+      font-family: Consolas, monospace; font-size: 11px; color: #6b707a;
+    }
+    #pal {
+      display: none; position: absolute; inset: 48px 14% auto 14%; background: #12151c;
+      border: 1px solid #2a2f3a; border-radius: 10px; padding: 8px; z-index: 5;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    }
+    #pal.on { display: block; }
+    #pal input {
+      width: 100%; height: 36px; border: 1px solid #2a2f3a; background: #0a0c10;
+      color: #e8eaef; border-radius: 8px; padding: 0 10px; margin-bottom: 6px;
+    }
+    #pal button {
+      display: block; width: 100%; text-align: left; border: 0; background: transparent;
+      color: #c8ccd4; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    #pal button:hover, #pal button.hit { background: #1a1e27; }
+    #pal button.gone { display: none; }
+    #ctx {
+      display: none; position: fixed; z-index: 8; background: #12151c;
+      border: 1px solid #2a2f3a; border-radius: 8px; min-width: 140px; padding: 4px;
+    }
+    #ctx.on { display: block; }
+    #ctx button {
+      display: block; width: 100%; text-align: left; border: 0; background: transparent;
+      color: #c8ccd4; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    #ctx button:hover { background: #1a1e27; }
+    #find {
+      display: none; position: absolute; top: 44px; right: 108px; z-index: 6;
+      background: #12151c; border: 1px solid #2a2f3a; border-radius: 8px;
+      padding: 6px; gap: 6px; align-items: center;
+    }
+    #find.on { display: flex; }
+    #find input {
+      width: 200px; height: 28px; border: 1px solid #2a2f3a; background: #0a0c10;
+      color: #e8eaef; border-radius: 6px; padding: 0 8px;
+    }
+    #find button {
+      border: 0; background: #1a1e27; color: #c8ccd4; height: 28px; padding: 0 10px;
+      border-radius: 6px; cursor: pointer;
+    }
+    #app.drop-target { outline: 3px solid #7aa2f7; outline-offset: -3px; }
+    .xterm-viewport { overflow-y: auto !important; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="mark"></span>
+    <span class="title">AetherShell</span>
+    <span class="chip nodrag" id="modechip">float</span>
+    <div class="tabs nodrag" id="tabs"></div>
+    <button class="icon nodrag" id="btnNew" title="New tab">+</button>
+    <button class="icon nodrag" id="btnPal" title="Palette">⌘</button>
+    <button class="icon nodrag" id="btnMode" title="Mode">▢</button>
+    <button class="icon nodrag" id="btnHide" title="Hide">–</button>
+  </header>
+  <div class="body">
+    <div id="termwrap"></div>
+    <aside id="rail"><b>SYS</b>CPU <span id="cpu">—</span><br><br>RAM <span id="mem">—</span><br><br>NET <span id="net">—</span></aside>
+  </div>
+  <footer><span id="status">empty body · real Windows shell</span><span id="clock"></span></footer>
+  <div id="pal">
+    <input id="palq" placeholder="Filter body commands…" />
+    <button data-spawn="pwsh">New PowerShell tab</button>
+    <button data-spawn="cmd">New Command Prompt tab</button>
+    <button data-spawn="wsl">New WSL tab</button>
+    <button data-spawn="gitbash">New Git Bash tab</button>
+    <button data-act="close">Close this tab</button>
+    <button data-act="clear">Clear screen</button>
+    <button data-act="quake">Mode: Quake</button>
+    <button data-act="float">Mode: Float</button>
+    <button data-act="dock">Mode: Dock</button>
+    <button data-act="hud">Mode: HUD</button>
+    <button data-act="taller">Taller overlay</button>
+    <button data-act="shorter">Shorter overlay</button>
+    <button data-act="fontup">Font larger</button>
+    <button data-act="fontdn">Font smaller</button>
+    <button data-act="dimmer">Dimmer overlay</button>
+    <button data-act="clearer">Clearer overlay</button>
+    <button data-act="hide">Hide overlay</button>
+  </div>
+</div>
+<div id="find">
+  <input id="findq" placeholder="Find in this tab…" />
+  <button id="findnext">Next</button>
+</div>
+<div id="ctx">
+  <button data-ctx="copy">Copy</button>
+  <button data-ctx="paste">Paste</button>
+  <button data-ctx="open">Open folder / link</button>
+  <button data-ctx="hide">Hide</button>
+</div>
+<script src="./vendor/xterm.js"></script>
+<script src="./vendor/xterm-addon-fit.js"></script>
+<script>
+(function () {
+  const native = window.aetherNative;
+  const tabsEl = document.getElementById("tabs");
+  const wrap = document.getElementById("termwrap");
+  const pal = document.getElementById("pal");
+  const palq = document.getElementById("palq");
+  const find = document.getElementById("find");
+  const findq = document.getElementById("findq");
+  const status = document.getElementById("status");
+  const appEl = document.getElementById("app");
+  const tabs = [];
+  let active = null;
+  let fontSize = 14;
+  let coverageH = 48;
+  let overlayOpacity = 1;
+  const modes = ["quake", "float", "dock", "hud"];
+  const ctx = document.getElementById("ctx");
+  const modechip = document.getElementById("modechip");
+
+  function termTheme() {
+    return {
+      background: "#0a0c10",
+      foreground: "#e8eaef",
+      cursor: "#7aa2f7",
+      cursorAccent: "#0a0c10",
+      selection: "#243049",
+      black: "#0a0c10",
+      blue: "#7aa2f7",
+      cyan: "#7dcfff",
+      green: "#9ece6a",
+      magenta: "#bb9af7",
+      red: "#f7768e",
+      white: "#c0caf5",
+      yellow: "#e0af68",
+    };
+  }
+
+  function makeTerm() {
+    const term = new Terminal({
+      fontFamily: 'Consolas, "Cascadia Code", "IBM Plex Mono", monospace',
+      fontSize: fontSize,
+      lineHeight: 1.3,
+      theme: termTheme(),
+      cursorBlink: true,
+      convertEol: true,
+      windowsMode: true,
+      rendererType: "dom",
+      rightClickSelectsWord: true,
+    });
+    const FitCtor = (window.FitAddon && window.FitAddon.FitAddon) || window.FitAddon;
+    const fit = new FitCtor();
+    term.loadAddon(fit);
+    return { term, fit };
+  }
+
+  function fitActive() {
+    const t = tabs.find((x) => x.id === active);
+    if (t) {
+      t.fit.fit();
+      t.term.focus();
+    }
+  }
+
+  function applyOpacity(n) {
+    overlayOpacity = Math.min(1, Math.max(0.72, n));
+    if (native && native.setOpacity) native.setOpacity(overlayOpacity);
+  }
+
+  function applyFont(n) {
+    fontSize = Math.min(22, Math.max(11, n));
+    tabs.forEach((t) => {
+      t.term.setOption("fontSize", fontSize);
+      t.fit.fit();
+    });
+    if (native && native.setFont) native.setFont(fontSize);
+  }
+
+  function setModeUi(m) {
+    document.body.dataset.mode = m;
+    appEl.classList.toggle("hud", m === "hud");
+    if (modechip) modechip.textContent = m;
+  }
+
+  function drawTabs() {
+    tabsEl.innerHTML = "";
+    tabs.forEach((t) => {
+      const b = document.createElement("button");
+      b.className = "tab" + (t.id === active ? " on" : "");
+      b.innerHTML = "<span>" + t.name + "</span><span class='x'>×</span>";
+      b.onclick = (e) => {
+        if (e.target.classList.contains("x")) closeTab(t.id);
+        else select(t.id);
+      };
+      b.onauxclick = (e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          closeTab(t.id);
+        }
+      };
+      tabsEl.appendChild(b);
+    });
+  }
+
+  function select(id) {
+    active = id;
+    const t = tabs.find((x) => x.id === id);
+    tabs.forEach((x) => {
+      x.el.style.display = x.id === id ? "block" : "none";
+    });
+    if (t) {
+      status.textContent = t.file + " · empty body · " + (document.body.dataset.mode || "float");
+      setTimeout(fitActive, 30);
+      t.term.focus();
+    }
+    drawTabs();
+  }
+
+  function cycleTab(dir) {
+    if (tabs.length < 2) return;
+    const i = tabs.findIndex((x) => x.id === active);
+    const n = (i + dir + tabs.length) % tabs.length;
+    select(tabs[n].id);
+  }
+
+  function profileOf(t) {
+    const n = String((t && (t.profile || t.name)) || "").toLowerCase();
+    if (n.includes("cmd")) return "cmd";
+    if (n.includes("git")) return "gitbash";
+    if (n.includes("wsl") || n === "bash") return "wsl";
+    return "pwsh";
+  }
+
+  function closeTab(id) {
+    const i = tabs.findIndex((x) => x.id === id);
+    if (i < 0) return;
+    const t = tabs[i];
+    const p = profileOf(t);
+    if (native && native.ptyKill) native.ptyKill(t.id);
+    t.el.remove();
+    tabs.splice(i, 1);
+    if (!tabs.length) spawn(p);
+    else select(tabs[Math.max(0, i - 1)].id);
+  }
+
+  function replaceLine(rec, next) {
+    const n = rec.line.length;
+    if (n) rec.term.write("\b \b".repeat(n));
+    rec.line = next || "";
+    if (rec.line) rec.term.write(rec.line);
+  }
+
+  function hist(rec, dir) {
+    if (!rec.history.length) return;
+    if (rec.histIdx === rec.history.length) rec.draft = rec.line;
+    rec.histIdx = Math.max(0, Math.min(rec.history.length, rec.histIdx + dir));
+    replaceLine(rec, rec.histIdx === rec.history.length ? rec.draft : rec.history[rec.histIdx]);
+  }
+
+  async function pasteInto(rec) {
+    if (!native || !native.clipRead) return;
+    const text = await native.clipRead();
+    if (!text) {
+      status.textContent = "nothing to paste — copy a file in Explorer, or drop it";
+      return;
+    }
+    const first = String(text).replace(/\r\n/g, "\n").split("\n")[0];
+    rec.line += first;
+    rec.term.write(first);
+  }
+
+  async function spawn(profile) {
+    if (!native || !native.ptySpawn) {
+      status.textContent = "native host missing";
+      return;
+    }
+    const info = await native.ptySpawn(profile);
+    const { term, fit } = makeTerm();
+    const el = document.createElement("div");
+    el.style.height = "100%";
+    wrap.appendChild(el);
+    term.open(el);
+    fit.fit();
+    const rec = { id: info.id, name: info.name, file: info.file, profile: profile || "pwsh", term, fit, el, line: "", history: [], histIdx: 0, draft: "" };
+    if (native.histGet) {
+      const saved = await native.histGet(rec.profile);
+      if (Array.isArray(saved) && saved.length) {
+        rec.history = saved.slice(-80);
+        rec.histIdx = rec.history.length;
+      }
+    }
+    tabs.push(rec);
+    term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      if (sel && native.clipWrite) native.clipWrite(sel);
+    });
+    term.onData((data) => {
+      if (active !== rec.id) return;
+      if (data === "\x16") { pasteInto(rec); return; }
+      let i = 0;
+      while (i < data.length) {
+        const ch = data[i];
+        if (ch === "\x1b") {
+          const seq = data.slice(i);
+          if (seq.startsWith("\x1b[A")) { hist(rec, -1); i += 3; continue; }
+          if (seq.startsWith("\x1b[B")) { hist(rec, 1); i += 3; continue; }
+          i += 1;
+          continue;
+        }
+        if (ch === "\r") {
+          if (rec.line.trim()) {
+            rec.history.push(rec.line);
+            if (native.histPush) native.histPush(rec.profile, rec.line);
+          }
+          rec.histIdx = rec.history.length;
+          rec.draft = "";
+          native.ptyWrite(rec.id, rec.line + "\r\n");
+          rec.line = "";
+          term.write("\r\n");
+          i += 1;
+          continue;
+        }
+        if (ch === "\u007f" || ch === "\b") {
+          if (rec.line.length) {
+            rec.line = rec.line.slice(0, -1);
+            term.write("\b \b");
+          }
+          i += 1;
+          continue;
+        }
+        if (ch === "\u0003") {
+          native.ptyWrite(rec.id, "\u0003");
+          rec.line = "";
+          rec.histIdx = rec.history.length;
+          term.write("^C\r\n");
+          i += 1;
+          continue;
+        }
+        if (ch === "\u0015") {
+          replaceLine(rec, "");
+          i += 1;
+          continue;
+        }
+        if (ch === "\u000c") {
+          term.clear();
+          if (rec.line) term.write(rec.line);
+          i += 1;
+          continue;
+        }
+        if (ch >= " ") {
+          rec.line += ch;
+          rec.histIdx = rec.history.length;
+          term.write(ch);
+        }
+        i += 1;
+      }
+    });
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown") return true;
+      if (ev.key === "Escape") {
+        onEscape();
+        return false;
+      }
+      if (!(ev.ctrlKey || ev.metaKey)) return true;
+      const k = ev.key.toLowerCase();
+      if (ev.shiftKey && k === "c") {
+        const sel = term.getSelection();
+        if (sel && native.clipWrite) native.clipWrite(sel);
+        return false;
+      }
+      if ((ev.shiftKey && k === "v") || k === "v") {
+        pasteInto(rec);
+        return false;
+      }
+      if (k === "w") {
+        closeTab(rec.id);
+        return false;
+      }
+      return true;
+    });
+    select(info.id);
+    term.writeln("\x1b[38;2;122;162;247mAetherShell\x1b[0m  empty body · " + info.file);
+    term.writeln("\x1b[38;2;139;144;154mCtrl+F find · Ctrl+Plus/Minus font · Esc hide\x1b[0m");
+  }
+
+  function filterPal() {
+    const q = palq.value.toLowerCase();
+    pal.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("gone", q && !b.textContent.toLowerCase().includes(q));
+    });
+  }
+
+  if (native && native.onPtyData) {
+    native.onPtyData(({ id, data }) => {
+      const t = tabs.find((x) => x.id === id);
+      if (t) t.term.write(data);
+    });
+  }
+  if (native && native.onPtyExit) {
+    native.onPtyExit(({ id }) => {
+      const t = tabs.find((x) => x.id === id);
+      const p = profileOf(t);
+      if (t) t.term.writeln("\r\n\x1b[38;2;247;118;142mprocess exited · opening a new shell\x1b[0m");
+      setTimeout(() => {
+        if (!tabs.find((x) => x.id === id)) return;
+        const others = tabs.length > 1;
+        closeTab(id);
+        if (others) spawn(p);
+      }, 250);
+    });
+  }
+  function openFind() {
+    if (!find) return;
+    pal.classList.remove("on");
+    find.classList.add("on");
+    findq.focus();
+    findq.select();
+  }
+
+  function closeFind() {
+    if (!find) return;
+    find.classList.remove("on");
+    const t = tabs.find((x) => x.id === active);
+    if (t) t.term.focus();
+  }
+
+  function findNext() {
+    const rec = tabs.find((x) => x.id === active);
+    if (!rec || !findq) return;
+    const q = findq.value.toLowerCase();
+    if (!q) return;
+    const buf = rec.term.buffer && rec.term.buffer.active;
+    if (!buf) {
+      status.textContent = "find unavailable";
+      return;
+    }
+    const len = buf.length;
+    const start = rec.findRow == null ? 0 : rec.findRow + 1;
+    for (let n = 0; n < len; n++) {
+      const i = (start + n) % len;
+      const line = buf.getLine(i);
+      if (!line) continue;
+      const s = line.translateToString(true);
+      const col = s.toLowerCase().indexOf(q);
+      if (col >= 0) {
+        rec.findRow = i;
+        rec.term.scrollToLine(Math.max(0, i - 2));
+        try { rec.term.select(col, i, q.length); } catch { /* xterm 4 */ }
+        status.textContent = "found · line " + (i + 1);
+        return;
+      }
+    }
+    status.textContent = "not found";
+  }
+
+  function onEscape() {
+    if (find && find.classList.contains("on")) closeFind();
+    else if (pal.classList.contains("on")) pal.classList.remove("on");
+    else if (native) native.hide();
+  }
+
+  if (native && native.onShown) native.onShown(() => setTimeout(fitActive, 40));
+  if (native && native.onEscape) native.onEscape(onEscape);
+  if (native && native.onNextTab) native.onNextTab(() => cycleTab(1));
+  if (native && native.onPrevTab) native.onPrevTab(() => cycleTab(-1));
+  if (native && native.onFind) native.onFind(openFind);
+  if (native && native.onFontUp) native.onFontUp(() => applyFont(fontSize + 1));
+  if (native && native.onFontDown) native.onFontDown(() => applyFont(fontSize - 1));
+  if (native && native.onPalette) native.onPalette(() => { pal.classList.add("on"); palq.focus(); });
+  if (native && native.onMetrics) {
+    native.onMetrics(({ cpu, mem }) => {
+      document.getElementById("cpu").textContent = cpu + "%";
+      document.getElementById("mem").textContent = mem + "%";
+      document.getElementById("net").textContent = "—";
+    });
+  }
+
+  document.getElementById("findnext").onclick = findNext;
+  findq.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      findNext();
+    }
+  });
+  document.getElementById("btnNew").onclick = () => spawn("pwsh");
+  document.getElementById("btnPal").onclick = () => { pal.classList.toggle("on"); if (pal.classList.contains("on")) palq.focus(); };
+  document.getElementById("btnMode").onclick = () => {
+    const cur = document.body.dataset.mode || "float";
+    const next = modes[(modes.indexOf(cur) + 1) % 4];
+    setModeUi(next);
+    native && native.setMode(next);
+  };
+
+  pal.querySelectorAll("button").forEach((b) => {
+    b.onclick = () => {
+      pal.classList.remove("on");
+      palq.value = "";
+      filterPal();
+      if (b.dataset.spawn) spawn(b.dataset.spawn);
+      if (b.dataset.act === "hide") native && native.hide();
+      if (b.dataset.act === "close" && active) closeTab(active);
+      if (b.dataset.act === "clear") {
+        const t = tabs.find((x) => x.id === active);
+        if (t) t.term.clear();
+      }
+      if (modes.includes(b.dataset.act)) {
+        setModeUi(b.dataset.act);
+        native && native.setMode(b.dataset.act);
+      }
+      if (b.dataset.act === "taller") {
+        coverageH = Math.min(90, coverageH + 8);
+        native && native.setCoverage({ h: coverageH });
+      }
+      if (b.dataset.act === "shorter") {
+        coverageH = Math.max(22, coverageH - 8);
+        native && native.setCoverage({ h: coverageH });
+      }
+      if (b.dataset.act === "fontup") applyFont(fontSize + 1);
+      if (b.dataset.act === "fontdn") applyFont(fontSize - 1);
+      if (b.dataset.act === "dimmer") applyOpacity(overlayOpacity - 0.08);
+      if (b.dataset.act === "clearer") applyOpacity(overlayOpacity + 0.08);
+    };
+  });
+  palq.addEventListener("input", filterPal);
+  palq.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") pal.classList.remove("on");
+    if (e.key === "Enter") {
+      const vis = [...pal.querySelectorAll("button")].find((x) => !x.classList.contains("gone"));
+      if (vis) vis.click();
+    }
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onEscape();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "p") {
+      e.preventDefault();
+      pal.classList.toggle("on");
+      palq.focus();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Tab") {
+      e.preventDefault();
+      cycleTab(e.shiftKey ? -1 : 1);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      spawn("pwsh");
+    }
+  }, true);
+  window.addEventListener("resize", fitActive);
+  wrap.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    ctx.style.left = e.clientX + "px";
+    ctx.style.top = e.clientY + "px";
+    ctx.classList.add("on");
+  });
+  function insertChunk(text) {
+    const rec = tabs.find((x) => x.id === active);
+    if (!rec || !text) return;
+    const chunk = (rec.line && !rec.line.endsWith(" ") ? " " : "") + text;
+    rec.line += chunk;
+    rec.term.write(chunk);
+    rec.term.focus();
+  }
+
+  function pathsFromDrop(e) {
+    const dt = e.dataTransfer;
+    if (!dt) return [];
+    const files = [...(dt.files || [])];
+    const fromFiles = files
+      .map((f) => (native && native.pathForFile ? native.pathForFile(f) : f.path || ""))
+      .filter(Boolean);
+    if (fromFiles.length) return fromFiles;
+    const uri = dt.getData("text/uri-list") || dt.getData("text/plain") || "";
+    return uri
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"))
+      .map((u) => {
+        let s = u.replace(/^file:\/\//i, "");
+        try { s = decodeURIComponent(s); } catch { /* */ }
+        return s.replace(/^\/([A-Za-z]:)/, "$1").replace(/\//g, "\\");
+      })
+      .filter(Boolean);
+  }
+
+  let dragDepth = 0;
+  function armDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    try { e.dataTransfer.dropEffect = "copy"; } catch { /* */ }
+  }
+  window.addEventListener("dragenter", (e) => {
+    armDrop(e);
+    dragDepth += 1;
+    appEl.classList.add("drop-target");
+  }, true);
+  window.addEventListener("dragover", armDrop, true);
+  window.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) appEl.classList.remove("drop-target");
+  }, true);
+  window.addEventListener("drop", (e) => {
+    armDrop(e);
+    dragDepth = 0;
+    appEl.classList.remove("drop-target");
+    const paths = pathsFromDrop(e);
+    if (!paths.length) {
+      status.textContent = "drop heard, but no file path — try a file from Explorer";
+      return;
+    }
+    const text = paths.map((p) => (/\s/.test(p) ? '"' + p + '"' : p)).join(" ");
+    insertChunk(text);
+    status.textContent = "dropped " + paths.length + " path" + (paths.length > 1 ? "s" : "");
+  }, true);
+  document.addEventListener("click", () => ctx.classList.remove("on"));
+  ctx.querySelectorAll("button").forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      ctx.classList.remove("on");
+      const rec = tabs.find((x) => x.id === active);
+      if (b.dataset.ctx === "copy" && rec) {
+        const sel = rec.term.getSelection();
+        if (sel && native.clipWrite) native.clipWrite(sel);
+      }
+      if (b.dataset.ctx === "paste" && rec) pasteInto(rec);
+      if (b.dataset.ctx === "open") {
+        const sel = rec && rec.term.getSelection();
+        const text = String(sel || "").trim();
+        const url = text.match(/https?:\/\/\S+/i);
+        const winp = text.match(/[A-Za-z]:\\[^\s*?"<>|]+/);
+        const target = url ? url[0] : (winp ? winp[0] : text);
+        if (native.openThing) native.openThing(target);
+      }
+      if (b.dataset.ctx === "hide") native && native.hide();
+    };
+  });
+
+  setInterval(() => {
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString();
+  }, 1000);
+
+  (async function boot() {
+    if (native && native.getBody) {
+      const body = await native.getBody();
+      if (body && body.mode) setModeUi(body.mode);
+      if (body && body.fontSize) fontSize = Number(body.fontSize) || 14;
+      if (body && body.opacity) overlayOpacity = Number(body.opacity) || 1;
+      if (body && body.coverage && body.coverage.h) coverageH = Number(body.coverage.h);
+    } else setModeUi("float");
+    spawn("pwsh");
+  })();
+})();
+</script>
+</body>
+</html>
