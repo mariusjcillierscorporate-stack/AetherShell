@@ -1,17 +1,20 @@
 # Status
 
-**Date:** 2026-09-13  
-**Head:** 1.14.0  
+**Date:** 2026-09-26  
+**Head (git docs):** 1.19.0 brief sealed  
+**Floor asar:** 1.18.0 picture tab  
 **Restore:** v1.10.0-stable zip
 
 ## Now
 
-Empty body on Windows. Real PowerShell. Drag-and-drop file → path works.
+Empty body on Windows. Real PowerShell. Path-drop on the terminal works. One URL picture tab exists in 1.18.0.
 
-## Next (when we return)
+Expert sealed three-door lens insert (A sidecar + B URL/html + C `.lens` zip). Builder has law in `docs/briefs/ACTIVE.md`.
 
-Fix Explorer Copy → paste path in the shell. Ctrl+V and right-click Paste currently no-op for files. Pictures on the clipboard are not paths (by design).
+## Next
+
+Builder executes 1.19.0. Expert does not build in the R&D chamber.
 
 ## Not now
 
-Bayonet lenses. Electron rebuild. Phone app. ConPTY.
+Many picture tabs. Plugin host. Lens exe. Electron rebuild. Phone app. ConPTY / node-pty rewrite.

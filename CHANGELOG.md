@@ -2,6 +2,26 @@
 
 Floor-tested on Marius's Windows PC unless noted.
 
+## 1.19.0 — three-door lens insert  · SEALED BRIEF
+
+Expert sealed 26 Sep 2026. **Not floor-tested.** Builder cut.
+
+Long-run QoL: doors A + B + C, one mount.
+
+- **A** sidecar `portable\lenses\<id>\lens.json`
+- **B** URL / `.html` / `.url` onto chrome (ATLAS prompt stays)
+- **C** drop `.lens` or `.zip` pack onto chrome → unpack into `lenses\<id>\` → mount
+
+One picture slot. Hot-swap if a picture is already open. `.exe` is not a lens. Contract: `docs/LENS-INSERT.md`. Brief: `docs/briefs/ACTIVE.md`.
+
+## 1.18.0 — Bayonet picture tab  · floor asar, source lag
+
+One URL picture tab (ATLAS webview). `ownsBody false`. Shipped as `app.asar`. Git `main` source still frozen near 1.14.
+
+## 1.17.0 / 1.16.0 / 1.15.0 — Explorer paste path  · floor asar
+
+STA + remember Explorer copies. Chromium cannot see `CF_HDROP`. Source not fully on `main`.
+
 ## 1.14.0 — Explorer file paste (open)
 
 Attempt: copy a file in Explorer, paste in the shell, get the path.  
