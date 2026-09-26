@@ -33,7 +33,10 @@
     }
     .icon:hover { background: #1a1e27; color: #e8eaef; }
     .body { flex: 1; display: flex; min-height: 0; }
-    #termwrap { flex: 1; min-width: 0; padding: 8px 10px 4px; }
+    #termwrap { flex: 1; min-width: 0; min-height: 0; padding: 8px 10px 4px; position: relative; }
+    #termwrap > div { height: 100%; }
+    .picture-host { height: 100%; width: 100%; background: #0a0c10; }
+    .picture-host webview { width: 100%; height: 100%; border: 0; background: #0a0c10; }
     #rail {
       width: 92px; border-left: 1px solid #2a2f3a; background: #12151c; padding: 8px;
       font-size: 10px; color: #8b909a; font-family: Consolas, "Cascadia Code", monospace;
@@ -112,6 +115,8 @@
     <button data-spawn="cmd">New Command Prompt tab</button>
     <button data-spawn="wsl">New WSL tab</button>
     <button data-spawn="gitbash">New Git Bash tab</button>
+    <button data-act="mount">Mount ATLAS picture</button>
+    <div id="lensBtns"></div>
     <button data-act="close">Close this tab</button>
     <button data-act="clear">Clear screen</button>
     <button data-act="quake">Mode: Quake</button>
@@ -124,6 +129,7 @@
     <button data-act="fontdn">Font smaller</button>
     <button data-act="dimmer">Dimmer overlay</button>
     <button data-act="clearer">Clearer overlay</button>
+    <button data-act="dump">Dev dump (clipboard / paste)</button>
     <button data-act="hide">Hide overlay</button>
   </div>
 </div>
@@ -197,7 +203,7 @@
 
   function fitActive() {
     const t = tabs.find((x) => x.id === active);
-    if (t) {
+    if (t && t.fit && t.term) {
       t.fit.fit();
       t.term.focus();
     }
@@ -250,9 +256,13 @@
       x.el.style.display = x.id === id ? "block" : "none";
     });
     if (t) {
-      status.textContent = t.file + " · empty body · " + (document.body.dataset.mode || "float");
-      setTimeout(fitActive, 30);
-      t.term.focus();
+      if (t.kind === "picture") {
+        status.textContent = "picture · " + t.name + " · ownsBody false · shell stays";
+      } else {
+        status.textContent = t.file + " · empty body · " + (document.body.dataset.mode || "float");
+        setTimeout(fitActive, 30);
+        t.term.focus();
+      }
     }
     drawTabs();
   }
@@ -277,7 +287,7 @@
     if (i < 0) return;
     const t = tabs[i];
     const p = profileOf(t);
-    if (native && native.ptyKill) native.ptyKill(t.id);
+    if (native && native.ptyKill && t.kind !== "picture" && t.id !== "dev") native.ptyKill(t.id);
     t.el.remove();
     tabs.splice(i, 1);
     if (!tabs.length) spawn(p);
@@ -299,15 +309,124 @@
   }
 
   async function pasteInto(rec) {
+    if (!rec || rec.kind === "picture" || !rec.term) return;
     if (!native || !native.clipRead) return;
-    const text = await native.clipRead();
+    const res = await native.clipRead();
+    const text = typeof res === "string" ? res : (res && res.text) || "";
+    const dump = res && res.dump;
     if (!text) {
-      status.textContent = "nothing to paste — copy a file in Explorer, or drop it";
+      status.textContent = "paste failed — opening DEV dump";
+      if (dump) openDump(dump);
+      else openDump("paste failed and dump was empty");
       return;
     }
-    const first = String(text).replace(/\r\n/g, "\n").split("\n")[0];
-    rec.line += first;
-    rec.term.write(first);
+    const chunk = String(text).replace(/\r\n/g, "\n").split("\n").filter(Boolean).join(" ");
+    rec.line += chunk;
+    rec.term.write(chunk);
+    status.textContent = chunk.includes(":\\") || chunk.startsWith("\\\\") ? "pasted path from Explorer" : "pasted";
+  }
+
+  function openDump(dump) {
+    const text = String(dump || "(empty)");
+    const existing = tabs.find((t) => t.profile === "dev");
+    const body = text.replace(/\n/g, "\r\n");
+    status.textContent = "DEV dump ready — select it and copy, or it is already on the clipboard";
+    if (existing) {
+      existing.term.clear();
+      existing.term.write(body + "\r\n");
+      select(existing.id);
+      return;
+    }
+    const { term, fit } = makeTerm();
+    const el = document.createElement("div");
+    el.style.height = "100%";
+    wrap.appendChild(el);
+    term.open(el);
+    term.write(body + "\r\n");
+    fit.fit();
+    const rec = { id: "dev", name: "DEV", profile: "dev", term, fit, el, line: "", history: [], histIdx: 0, draft: "" };
+    tabs.push(rec);
+    select("dev");
+  }
+
+  async function requestDump() {
+    if (!native || !native.clipDump) {
+      openDump("clipDump missing");
+      return;
+    }
+    const res = await native.clipDump();
+    openDump((res && res.dump) || JSON.stringify(res, null, 2));
+  }
+
+  function showPicture(title, src) {
+    const name = String(title || "PICTURE").slice(0, 24);
+    const clean = String(src || "").trim();
+    if (!/^(https?|file):/i.test(clean)) {
+      status.textContent = "picture needs lens.json or http(s)";
+      return;
+    }
+    const existing = tabs.find((t) => t.kind === "picture");
+    if (existing) {
+      existing.el.remove();
+      const i = tabs.indexOf(existing);
+      if (i >= 0) tabs.splice(i, 1);
+    }
+    const el = document.createElement("div");
+    el.className = "picture-host";
+    const view = document.createElement("webview");
+    view.setAttribute("src", clean);
+    view.setAttribute("allowpopups", "on");
+    el.appendChild(view);
+    wrap.appendChild(el);
+    const rec = {
+      id: "picture",
+      name,
+      kind: "picture",
+      profile: "picture",
+      url: clean,
+      file: "picture",
+      el,
+      term: null,
+      fit: null,
+      line: "",
+      history: [],
+      histIdx: 0,
+      draft: "",
+    };
+    tabs.push(rec);
+    if (/^https?:/i.test(clean)) {
+      try { localStorage.setItem("aether.picture.url", clean); } catch { /* */ }
+    }
+    select(rec.id);
+    status.textContent = "picture · " + name + " · ownsBody false · shell stays";
+  }
+
+  function mountPicture(url) {
+    const clean = String(url || "").trim();
+    if (!/^https?:\/\//i.test(clean)) {
+      status.textContent = "picture needs lens.json or http(s)";
+      return;
+    }
+    showPicture("ATLAS", clean);
+  }
+
+  async function refreshLenses() {
+    const box = document.getElementById("lensBtns");
+    if (!box) return;
+    box.innerHTML = "";
+    if (!native || !native.lensScan) return;
+    const list = await native.lensScan();
+    (list || []).forEach((lens) => {
+      const b = document.createElement("button");
+      b.textContent = "Mount " + lens.title;
+      b.onclick = async () => {
+        pal.classList.remove("on");
+        const res = await native.lensOpen({ door: "id", id: lens.id });
+        if (!res || !res.ok) status.textContent = (res && res.error) || "picture needs lens.json or http(s)";
+        else showPicture(res.title, res.src);
+      };
+      box.appendChild(b);
+    });
   }
 
   async function spawn(profile) {
@@ -507,7 +626,11 @@
   if (native && native.onFind) native.onFind(openFind);
   if (native && native.onFontUp) native.onFontUp(() => applyFont(fontSize + 1));
   if (native && native.onFontDown) native.onFontDown(() => applyFont(fontSize - 1));
-  if (native && native.onPalette) native.onPalette(() => { pal.classList.add("on"); palq.focus(); });
+  if (native && native.onPaste) native.onPaste(() => {
+    const rec = tabs.find((x) => x.id === active);
+    if (rec && rec.kind !== "picture") pasteInto(rec);
+  });
+  if (native && native.onDump) native.onDump(() => requestDump());
   if (native && native.onMetrics) {
     native.onMetrics(({ cpu, mem }) => {
       document.getElementById("cpu").textContent = cpu + "%";
@@ -524,7 +647,13 @@
     }
   });
   document.getElementById("btnNew").onclick = () => spawn("pwsh");
-  document.getElementById("btnPal").onclick = () => { pal.classList.toggle("on"); if (pal.classList.contains("on")) palq.focus(); };
+  document.getElementById("btnPal").onclick = () => {
+    pal.classList.toggle("on");
+    if (pal.classList.contains("on")) {
+      refreshLenses();
+      palq.focus();
+    }
+  };
   document.getElementById("btnMode").onclick = () => {
     const cur = document.body.dataset.mode || "float";
     const next = modes[(modes.indexOf(cur) + 1) % 4];
@@ -542,7 +671,7 @@
       if (b.dataset.act === "close" && active) closeTab(active);
       if (b.dataset.act === "clear") {
         const t = tabs.find((x) => x.id === active);
-        if (t) t.term.clear();
+        if (t && t.term) t.term.clear();
       }
       if (modes.includes(b.dataset.act)) {
         setModeUi(b.dataset.act);
@@ -560,6 +689,13 @@
       if (b.dataset.act === "fontdn") applyFont(fontSize - 1);
       if (b.dataset.act === "dimmer") applyOpacity(overlayOpacity - 0.08);
       if (b.dataset.act === "clearer") applyOpacity(overlayOpacity + 0.08);
+      if (b.dataset.act === "dump") requestDump();
+      if (b.dataset.act === "mount") {
+        let saved = "";
+        try { saved = localStorage.getItem("aether.picture.url") || ""; } catch { /* */ }
+        const url = window.prompt("Atlas picture URL. The shell stays up. PowerShell tabs stay.", saved);
+        if (url) mountPicture(url);
+      }
     };
   });
   palq.addEventListener("input", filterPal);
@@ -646,18 +782,58 @@
     dragDepth = Math.max(0, dragDepth - 1);
     if (!dragDepth) appEl.classList.remove("drop-target");
   }, true);
-  window.addEventListener("drop", (e) => {
+  function dropOnTerminal(e) {
+    const t = e.target;
+    return !!(t && t.closest && t.closest(".xterm"));
+  }
+
+  window.addEventListener("drop", async (e) => {
     armDrop(e);
     dragDepth = 0;
     appEl.classList.remove("drop-target");
+    const terminal = dropOnTerminal(e);
     const paths = pathsFromDrop(e);
+    const raw = ((e.dataTransfer && (e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain"))) || "").trim();
+    const firstUrl = raw.split(/\r?\n/).map((s) => s.trim()).find((s) => /^https?:\/\//i.test(s));
+    if (!terminal && firstUrl && native && native.lensOpen) {
+      const res = await native.lensOpen({ door: "url", url: firstUrl });
+      if (!res || !res.ok) status.textContent = (res && res.error) || "picture needs lens.json or http(s)";
+      else showPicture(res.title, res.src);
+      return;
+    }
     if (!paths.length) {
       status.textContent = "drop heard, but no file path — try a file from Explorer";
       return;
     }
-    const text = paths.map((p) => (/\s/.test(p) ? '"' + p + '"' : p)).join(" ");
-    insertChunk(text);
-    status.textContent = "dropped " + paths.length + " path" + (paths.length > 1 ? "s" : "");
+    if (terminal) {
+      const text = paths.map((p) => (/\s/.test(p) ? '"' + p + '"' : p)).join(" ");
+      insertChunk(text);
+      status.textContent = "dropped " + paths.length + " path" + (paths.length > 1 ? "s" : "");
+      return;
+    }
+    const file = paths[0];
+    if (!native || !native.lensOpen) {
+      status.textContent = "picture needs lens.json or http(s)";
+      return;
+    }
+    let door = "";
+    if (/\.(exe|cmd|bat|msi|com|scr|ps1)$/i.test(file)) {
+      status.textContent = "not a lens · the body is the only exe";
+      return;
+    }
+    if (/\.(lens|zip)$/i.test(file)) door = "pack";
+    else if (/\.html?$/i.test(file)) door = "html";
+    else if (/\.url$/i.test(file)) door = "urlfile";
+    else {
+      status.textContent = "picture needs lens.json or http(s)";
+      return;
+    }
+    const res = await native.lensOpen({ door, path: file });
+    if (!res || !res.ok) status.textContent = (res && res.error) || "picture needs lens.json or http(s)";
+    else {
+      showPicture(res.title, res.src);
+      refreshLenses();
+    }
   }, true);
   document.addEventListener("click", () => ctx.classList.remove("on"));
   ctx.querySelectorAll("button").forEach((b) => {

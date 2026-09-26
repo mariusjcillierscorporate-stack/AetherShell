@@ -1,19 +1,17 @@
 # Status
 
 **Date:** 2026-09-26  
-**Head (git docs):** 1.19.0 brief sealed  
-**Floor asar:** 1.18.0 picture tab  
+**Head:** 1.19.0 three-door insert shipped as asar  
+**Floor asar:** 1.19.0 — not floor-proven  
 **Restore:** v1.10.0-stable zip
 
 ## Now
 
-Empty body on Windows. Real PowerShell. Path-drop on the terminal works. One URL picture tab exists in 1.18.0.
-
-Expert sealed three-door lens insert (A sidecar + B URL/html + C `.lens` zip). Builder has law in `docs/briefs/ACTIVE.md`.
+Empty body still the portable exe. Real PowerShell. One picture slot. Doors A, B, and C are in the 1.19.0 drop-in. Floor proof list in `docs/briefs/ACTIVE.md` is not checked off.
 
 ## Next
 
-Builder executes 1.19.0. Expert does not build in the R&D chamber.
+Marius runs the floor proof. Expert marks working or not, then moves ACTIVE to `docs/briefs/DONE/`.
 
 ## Not now
 

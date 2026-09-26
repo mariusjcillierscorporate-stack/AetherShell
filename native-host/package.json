@@ -1,7 +1,7 @@
 {
   "name": "aethershell",
   "productName": "AetherShell",
-  "version": "1.14.0",
+  "version": "1.19.0",
   "description": "Persistent overlay shell for Windows 10 and 11",
   "author": "AetherShell",
   "license": "MIT",

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("aetherNative", {
   setFont: (n) => ipcRenderer.invoke("body:set-font", n),
   setOpacity: (n) => ipcRenderer.invoke("body:set-opacity", n),
   clipRead: () => ipcRenderer.invoke("clip:read"),
+  clipDump: () => ipcRenderer.invoke("clip:dump"),
   clipWrite: (text) => ipcRenderer.invoke("clip:write", text),
   openThing: (text) => ipcRenderer.invoke("body:open", text),
   pathForFile: (file) => {
@@ -25,6 +26,8 @@ contextBridge.exposeInMainWorld("aetherNative", {
   },
   histGet: (profile) => ipcRenderer.invoke("hist:get", profile),
   histPush: (profile, line) => ipcRenderer.invoke("hist:push", { profile, line }),
+  lensScan: () => ipcRenderer.invoke("lens:scan"),
+  lensOpen: (payload) => ipcRenderer.invoke("lens:open", payload),
   onShown: (cb) => {
     ipcRenderer.on("win:shown", () => cb());
   },
@@ -45,6 +48,12 @@ contextBridge.exposeInMainWorld("aetherNative", {
   },
   onFontDown: (cb) => {
     ipcRenderer.on("win:font-down", () => cb());
+  },
+  onPaste: (cb) => {
+    ipcRenderer.on("win:paste", () => cb());
+  },
+  onDump: (cb) => {
+    ipcRenderer.on("win:dump", () => cb());
   },
   onPalette: (cb) => {
     ipcRenderer.on("win:palette", () => cb());

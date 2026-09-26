@@ -4,7 +4,9 @@ const { app, BrowserWindow, Tray, Menu, globalShortcut, screen, ipcMain, nativeI
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { spawn, spawnSync } = require("node:child_process");
 const { spawnSession } = require("./pty.cjs");
+const lens = require("./lens.cjs");
 
 /** @type {BrowserWindow | null} */
 let win = null;
@@ -17,6 +19,10 @@ let fontSize = 14;
 let opacity = 1;
 let startHidden = false;
 const sessions = new Map();
+/** @type {import('node:child_process').ChildProcess | null} */
+let clipWatch = null;
+let lastClipFiles = [];
+let lastClipAt = "";
 let lastCpu = process.cpuUsage();
 let lastCpuAt = Date.now();
 let hiddenNoted = false;
@@ -197,6 +203,45 @@ function createSession(profile) {
 function killAll() {
   for (const s of sessions.values()) s.kill();
   sessions.clear();
+  if (clipWatch && !clipWatch.killed) {
+    try { clipWatch.kill(); } catch { /* */ }
+    clipWatch = null;
+  }
+}
+
+function startClipWatch() {
+  if (clipWatch && !clipWatch.killed) return;
+  const script = [
+    "Add-Type -AssemblyName System.Windows.Forms | Out-Null",
+    "$last = ''",
+    "while ($true) {",
+    "  Start-Sleep -Milliseconds 400",
+    "  try {",
+    "    $list = [System.Windows.Forms.Clipboard]::GetFileDropList()",
+    "    if ($list -and $list.Count -gt 0) {",
+    "      $s = ($list | ForEach-Object { $_.ToString() }) -join '|'",
+    "      if ($s -ne $last) { $last = $s; Write-Output $s }",
+    "    }",
+    "  } catch { }",
+    "}",
+  ].join("; ");
+  try {
+    clipWatch = spawn("powershell.exe", ["-NoProfile", "-STA", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script], {
+      windowsHide: true,
+    });
+    clipWatch.stdout.on("data", (buf) => {
+      const line = String(buf || "").trim();
+      const files = line.split("|").map((s) => s.trim()).filter((s) => /^[A-Za-z]:\\/.test(s) || s.startsWith("\\\\"));
+      if (files.length) {
+        lastClipFiles = files;
+        lastClipAt = new Date().toISOString();
+      }
+    });
+    clipWatch.stderr.on("data", () => {});
+    clipWatch.on("exit", () => { clipWatch = null; });
+  } catch {
+    clipWatch = null;
+  }
 }
 
 function createWindow() {
@@ -227,6 +272,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false,
       webSecurity: false,
+      webviewTag: true,
       backgroundThrottling: false,
     },
   });
@@ -264,6 +310,11 @@ function createWindow() {
     if (input.control && !input.alt && (k === "-" || k === "_" || k === "Subtract")) {
       event.preventDefault();
       emit("win:font-down");
+      return;
+    }
+    if (input.control && !input.alt && !input.shift && (k === "v" || k === "V")) {
+      event.preventDefault();
+      emit("win:paste");
     }
   });
   win.on("closed", () => {
@@ -304,6 +355,8 @@ function refreshTray() {
         },
       },
       { type: "separator" },
+      { label: "Dev dump (this session)", click: () => { showWindow(); emit("win:dump"); } },
+      { type: "separator" },
       { label: "Quit AetherShell", click: () => app.quit() },
     ]),
   );
@@ -332,6 +385,10 @@ function registerHotkeys() {
     showWindow();
     emit("win:palette");
   });
+  globalShortcut.register("CommandOrControl+Shift+D", () => {
+    showWindow();
+    emit("win:dump");
+  });
 }
 
 app.setName("AetherShell");
@@ -345,6 +402,7 @@ if (!gotLock) {
     createWindow();
     createTray();
     registerHotkeys();
+    startClipWatch();
     setInterval(() => emit("body:metrics", sampleMetrics()), 2000);
   });
 }
@@ -395,36 +453,163 @@ function firstUtf16z(buf) {
   return (z >= 0 ? s.slice(0, z) : s).trim();
 }
 
-function clipboardAsPasteText() {
+function appVersion() {
   try {
-    const formats = clipboard.availableFormats();
-    if (formats.includes("FileNameW")) {
-      const s = quotePath(firstUtf16z(clipboard.readBuffer("FileNameW")));
-      if (s) return s;
-    }
-    if (formats.includes("FileName")) {
-      const raw = clipboard.readBuffer("FileName").toString("utf8");
-      const s = quotePath(raw.split("\0")[0]);
-      if (s) return s;
-    }
-    try {
-      const uri = clipboard.read("text/uri-list");
-      if (uri) {
-        const line = uri.split(/\r?\n/).find((l) => l && !l.startsWith("#")) || "";
-        const decoded = decodeURIComponent(line.replace(/^file:\/\//i, "").replace(/^\/([A-Za-z]:)/, "$1"));
-        const s = quotePath(decoded.replace(/\//g, "\\"));
-        if (s) return s;
-      }
-    } catch {
-      /* format missing */
-    }
+    return require("./package.json").version;
   } catch {
-    /* fall through */
+    return "?";
   }
-  return clipboard.readText();
 }
 
-ipcMain.handle("clip:read", () => clipboardAsPasteText());
+function parseHdrop(buf) {
+  if (!buf || buf.length < 20) return [];
+  try {
+    const pFiles = buf.readUInt32LE(0);
+    const fWide = buf.readInt32LE(16) !== 0;
+    let offset = pFiles > 0 && pFiles < buf.length ? pFiles : 20;
+    const paths = [];
+    if (fWide) {
+      while (offset + 2 <= buf.length) {
+        if (buf.readUInt16LE(offset) === 0) break;
+        let end = offset;
+        while (end + 2 <= buf.length && buf.readUInt16LE(end) !== 0) end += 2;
+        paths.push(buf.toString("utf16le", offset, end));
+        offset = end + 2;
+      }
+    } else {
+      while (offset < buf.length) {
+        if (buf[offset] === 0) break;
+        let end = offset;
+        while (end < buf.length && buf[end] !== 0) end += 1;
+        paths.push(buf.toString("latin1", offset, end));
+        offset = end + 1;
+      }
+    }
+    return paths.map((s) => s.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function probePsClipboard() {
+  const script = [
+    "[Console]::OutputEncoding = [Text.UTF8Encoding]::new()",
+    "try { $list = Get-Clipboard -Format FileDropList -ErrorAction SilentlyContinue; if ($list) { $list | ForEach-Object { $_.ToString() } } else { Write-Output 'NO-FileDropList' } } catch { Write-Output ('ERR-FileDropList ' + $_.Exception.Message) }",
+    "Write-Output '---TEXT---'",
+    "try { Get-Clipboard -Format Text } catch { }",
+  ].join("; ");
+  try {
+    const r = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-STA", "-NonInteractive", "-Command", script],
+      { encoding: "utf8", windowsHide: true, timeout: 6000 },
+    );
+    return {
+      status: r.status,
+      error: r.error ? String(r.error.message || r.error) : "",
+      stdout: String(r.stdout || "").slice(0, 4000),
+      stderr: String(r.stderr || "").slice(0, 2000),
+    };
+  } catch (e) {
+    return { status: -1, error: String(e.message || e), stdout: "", stderr: "" };
+  }
+}
+
+function inspectClipboard() {
+  const lines = [];
+  lines.push("AetherShell DEV DUMP  v" + appVersion());
+  lines.push("time  " + new Date().toISOString());
+  lines.push("platform  " + process.platform + "  pid " + process.pid);
+  let text = "";
+  let formats = [];
+  try {
+    formats = clipboard.availableFormats();
+  } catch (e) {
+    lines.push("availableFormats ERR  " + e.message);
+  }
+  lines.push("formats  " + JSON.stringify(formats));
+
+  for (const f of formats) {
+    try {
+      const buf = clipboard.readBuffer(f);
+      lines.push("buffer[" + f + "]  len=" + buf.length + "  hex=" + buf.slice(0, 80).toString("hex"));
+      const asUtf16 = buf.toString("utf16le").replace(/\0/g, " ").trim().slice(0, 240);
+      if (asUtf16) lines.push("  utf16  " + asUtf16);
+      if (/hdrop/i.test(f) || f === "Files") {
+        const paths = parseHdrop(buf);
+        lines.push("  hdrop  " + JSON.stringify(paths));
+        if (paths.length && !text) text = paths.map(quotePath).filter(Boolean).join(" ");
+      }
+    } catch (e) {
+      lines.push("buffer[" + f + "]  ERR  " + e.message);
+    }
+    try {
+      const s = clipboard.read(f);
+      if (s) lines.push("read[" + f + "]  " + JSON.stringify(String(s).slice(0, 240)));
+    } catch {
+      /* skip */
+    }
+  }
+
+  try {
+    if (formats.includes("FileNameW")) {
+      const s = quotePath(firstUtf16z(clipboard.readBuffer("FileNameW")));
+      lines.push("FileNameW parsed  " + s);
+      if (s && !text) text = s;
+    }
+  } catch (e) {
+    lines.push("FileNameW ERR  " + e.message);
+  }
+
+  try {
+    const uri = clipboard.read("text/uri-list") || "";
+    lines.push("uri-list  " + JSON.stringify(uri.slice(0, 240)));
+  } catch (e) {
+    lines.push("uri-list ERR  " + e.message);
+  }
+
+  const plain = clipboard.readText() || "";
+  lines.push("readText  " + JSON.stringify(plain.slice(0, 240)));
+  if (!text && /^[A-Za-z]:\\/.test(plain.trim())) text = quotePath(plain.trim());
+
+  const ps = probePsClipboard();
+  lines.push("powershell  status=" + ps.status + "  error=" + ps.error);
+  lines.push("ps stdout:");
+  lines.push(ps.stdout || "(empty)");
+  lines.push("ps stderr:");
+  lines.push(ps.stderr || "(empty)");
+  const psFiles = String(ps.stdout || "")
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => /^[A-Za-z]:\\/.test(s) || s.startsWith("\\\\"));
+  if (psFiles.length && !text) text = psFiles.map(quotePath).join(" ");
+  if (!text && lastClipFiles.length) text = lastClipFiles.map(quotePath).join(" ");
+  lines.push("cachedFiles  " + JSON.stringify(lastClipFiles));
+  lines.push("cachedAt  " + (lastClipAt || "(never)"));
+  lines.push("clipWatch  " + (clipWatch && !clipWatch.killed ? "running" : "dead"));
+  lines.push("chosen  " + JSON.stringify(text || "(none)"));
+  lines.push("--- copy this tab back to Grok ---");
+  return { text, dump: lines.join("\n") };
+}
+function portableRoot() {
+  return path.dirname(process.execPath);
+}
+
+ipcMain.handle("lens:scan", () => lens.scanLenses(portableRoot()));
+ipcMain.handle("lens:open", (_e, payload) => {
+  const door = payload && payload.door;
+  const root = portableRoot();
+  const file = String((payload && payload.path) || "");
+  if (door === "url") return lens.openUrl(payload && payload.url);
+  if (door === "html") return lens.openHtml(file);
+  if (door === "urlfile") return lens.openUrlFile(file);
+  if (door === "pack") return lens.installPack(root, file);
+  if (door === "id") return lens.openById(root, payload && payload.id);
+  return { ok: false, error: lens.REFUSE_PACK };
+});
+
+ipcMain.handle("clip:read", () => inspectClipboard());
+ipcMain.handle("clip:dump", () => inspectClipboard());
 ipcMain.handle("clip:write", (_e, text) => {
   clipboard.writeText(String(text || ""));
 });

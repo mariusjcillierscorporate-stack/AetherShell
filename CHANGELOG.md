@@ -2,17 +2,15 @@
 
 Floor-tested on Marius's Windows PC unless noted.
 
-## 1.19.0 — three-door lens insert  · SEALED BRIEF
+## 1.19.0 — three-door lens insert  · asar shipped, floor not proven
 
-Expert sealed 26 Sep 2026. **Not floor-tested.** Builder cut.
+Builder cut 26 Sep 2026. Drop-in `app.asar` on the v1.19.0 release. **Floor result: not yet.**
 
-Long-run QoL: doors A + B + C, one mount.
+- **A** sidecar `portable\\lenses\\<id>\\lens.json` listed in the palette as Mount <title>
+- **B** Mount ATLAS picture, or drop `https://` / `.html` / `.url` on chrome
+- **C** drop `.lens` or `.zip` on chrome → unpack into `lenses\\<id>\\` → mount
 
-- **A** sidecar `portable\lenses\<id>\lens.json`
-- **B** URL / `.html` / `.url` onto chrome (ATLAS prompt stays)
-- **C** drop `.lens` or `.zip` pack onto chrome → unpack into `lenses\<id>\` → mount
-
-One picture slot. Hot-swap if a picture is already open. `.exe` is not a lens. Contract: `docs/LENS-INSERT.md`. Brief: `docs/briefs/ACTIVE.md`.
+One picture slot. A second insert hot-swaps. Close the picture tab. Shell stays. `.exe` on chrome is refused. Terminal drop of a normal file still types the path.
 
 ## 1.18.0 — Bayonet picture tab  · floor asar, source lag
 
@@ -41,7 +39,7 @@ First drop attempt. Copy cursor, no path.
 
 ## 1.12.0 — open folder
 
-Right-click a `C:\` path or empty space → File Explorer. Working.
+Right-click a `C:\\` path or empty space → File Explorer. Working.
 
 ## 1.11.0 — dimmer
 
