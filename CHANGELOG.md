@@ -2,9 +2,9 @@
 
 Floor-tested on Marius's Windows PC unless noted.
 
-## 1.19.0 — three-door lens insert  · asar shipped, floor not proven
+## 1.19.0 — three-door lens insert  · asar shipped, Atlas picture SUCCESS
 
-Builder cut 26 Sep 2026. Drop-in `app.asar` on the v1.19.0 release. **Floor result: not yet.**
+Builder cut 26 Sep 2026. Drop-in `app.asar` on the v1.19.0 release.
 
 - **A** sidecar `portable\\lenses\\<id>\\lens.json` listed in the palette as Mount <title>
 - **B** Mount ATLAS picture, or drop `https://` / `.html` / `.url` on chrome
@@ -12,9 +12,12 @@ Builder cut 26 Sep 2026. Drop-in `app.asar` on the v1.19.0 release. **Floor resu
 
 One picture slot. A second insert hot-swaps. Close the picture tab. Shell stays. `.exe` on chrome is refused. Terminal drop of a normal file still types the path.
 
-The Atlas picture pack is `volumetric-atlas.lens` from the volumetric-atlas repo (`id` atlas, `ownsBody` false). Drop it on the chrome. It is also attached to this release. `demo.lens` remains the small proof pack.
+The Atlas picture pack is `volumetric-atlas.lens` from the volumetric-atlas work (`id` atlas, `ownsBody` false). It is also attached to the release. `demo.lens` remains the small proof pack.
 
-**Floor, Atlas picture only (26 Sep 2026, Marius):** `volumetric-atlas.lens` dropped on the taskbar. Picture tab opened in the frame and ran. The rest of this cut is not marked proven.
+**Floor SUCCESS — Atlas / VAM picture (26 Sep 2026, Marius, Bold/bulk):**
+Drag-and-drop opened a picture tab in the AetherShell frame. Ran as expected and planned. Expert notes this path as working.
+
+The rest of the 1.19.0 seven-point proof list is not marked proven.
 
 ## 1.18.0 — Bayonet picture tab  · floor asar, source lag
 
