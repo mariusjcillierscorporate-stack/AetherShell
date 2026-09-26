@@ -11,7 +11,9 @@ Persistent overlay terminal for Windows 10 and 11.
 
 A tray-resident overlay. Hide does not kill PowerShell. Quit does. Real Windows shells: PowerShell, cmd, WSL, Git Bash.
 
-This is the **empty body**. No Keystone / Drive / Loom lens is mounted yet. 1.18.0 adds one Bayonet picture slot (ATLAS URL in a tab). The shell stays up.
+This is the **empty body**. No Keystone / Drive / Loom lens is mounted yet. 1.19.0 adds one picture slot and three doors into it (sidecar folder, URL or html drop, `.lens` zip). The shell stays up.
+
+The Volumetric Atlas drop is not inside this exe. It is [`volumetric-atlas.lens`](https://github.com/mariusjcillierscorporate-stack/volumetric-atlas/blob/main/public/bayonet/volumetric-atlas.lens) (`id` atlas, `title` ATLAS, `ownsBody` false). Drag that file onto the chrome, not the terminal. The same file is attached to the [1.19.0 release](https://github.com/mariusjcillierscorporate-stack/AetherShell/releases/tag/v1.19.0). `demo.lens` is only the proof pack.
 
 ## Run
 

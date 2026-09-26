@@ -7,7 +7,7 @@
 
 ## Now
 
-Empty body still the portable exe. Real PowerShell. One picture slot. Doors A, B, and C are in the 1.19.0 drop-in. Floor proof list in `docs/briefs/ACTIVE.md` is not checked off.
+Empty body still the portable exe. Real PowerShell. One picture slot. Doors A, B, and C are in the 1.19.0 drop-in. The Atlas picture is a separate drop, `volumetric-atlas.lens`, not a second exe. Floor proof list in `docs/briefs/ACTIVE.md` is not checked off.
 
 ## Next
 

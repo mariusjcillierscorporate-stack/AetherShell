@@ -12,6 +12,8 @@ Builder cut 26 Sep 2026. Drop-in `app.asar` on the v1.19.0 release. **Floor resu
 
 One picture slot. A second insert hot-swaps. Close the picture tab. Shell stays. `.exe` on chrome is refused. Terminal drop of a normal file still types the path.
 
+The Atlas picture pack is `volumetric-atlas.lens` from the volumetric-atlas repo (`id` atlas, `ownsBody` false). Drop it on the chrome. It is also attached to this release. `demo.lens` remains the small proof pack. Floor result is still not yet.
+
 ## 1.18.0 — Bayonet picture tab  · floor asar, source lag
 
 One URL picture tab (ATLAS webview). `ownsBody false`. Shipped as `app.asar`. Git `main` source still frozen near 1.14.
